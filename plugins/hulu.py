@@ -57,7 +57,7 @@ async def hulu_poster(client, message):
         return await message.reply(f"❌ Failed to parse Hulu metadata: {e}", quote=True)
 
     # Final output
-    msg = f"{poster}\n\n{title}"
+    msg = f"{poster}\n\n{title} -"
     if year:
         msg += f" ({year})"
 
