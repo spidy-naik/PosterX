@@ -29,11 +29,20 @@ logging.getLogger("TgCrypto").setLevel(logging.WARNING)
 
 
 async def fetch_posters(url: str):
-    """Fetch posters from BookMyShow using Playwright (bypasses Cloudflare)"""
+    """Fetch posters from BookMyShow using stealth Playwright (bypasses Cloudflare)"""
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
+
+            # Stealth: set realistic user-agent and hide webdriver
+            await page.set_user_agent(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/139.0.0.0 Safari/537.36"
+            )
+            await page.evaluate("() => { Object.defineProperty(navigator, 'webdriver', {get: () => undefined}) }")
+
             await page.goto(url, timeout=60000)
             content = await page.content()
             await browser.close()
@@ -44,7 +53,7 @@ async def fetch_posters(url: str):
         soup = BeautifulSoup(content, "html.parser")
         posters = []
 
-        # Extract og:image
+        # Extract main og:image
         og_image = soup.find("meta", property="og:image")
         if og_image:
             posters.append(og_image.get("content"))
@@ -83,10 +92,9 @@ async def poster_command(client: Client, message: Message):
     if isinstance(result, str):  # error message
         return await message.reply_text(result)
 
-    # Send all posters
-    for poster in result:
-        try:
-            await message.reply_photo(poster)
-        except Exception as e:
-            logger.warning(f"Failed to send photo: {poster} | Error: {e}")
-            await message.reply_text(poster)
+    # Send only the first (main) poster
+    try:
+        await message.reply_photo(result[0])
+    except Exception as e:
+        logger.warning(f"Failed to send photo: {result[0]} | Error: {e}")
+        await message.reply_text(result[0])
