@@ -20,7 +20,7 @@ async def hulu_poster(client, message):
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Extract the JSON-LD script
+    # Extract JSON-LD script
     json_ld = soup.find("script", type="application/ld+json")
     if not json_ld:
         return await message.reply("❌ Hulu metadata not found!", quote=True)
@@ -35,9 +35,10 @@ async def hulu_poster(client, message):
         # Get poster and convert to high-res JPEG
         poster = data.get("image", "")
         if poster:
-            poster = poster.split("&format=")[0]  # remove old format
-            poster = poster.split("&size=")[0]    # remove old size
-            poster += "&format=jpeg&size=3840x2160"
+            # Remove old format and size params
+            poster = poster.split("&format=")[0].split("&size=")[0]
+            poster = poster.replace("®ion=", "&region=")  # Fix the misinterpreted region
+            poster += "&format=jpeg&size=3840x2160&region=US"
     except Exception as e:
         return await message.reply(f"❌ Failed to parse Hulu metadata: {e}", quote=True)
 
