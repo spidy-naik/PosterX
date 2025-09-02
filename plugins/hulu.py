@@ -35,9 +35,9 @@ async def hulu_poster(client, message):
         # Get poster and convert to high-res JPEG
         poster = data.get("image", "")
         if poster:
-            # Remove old format and size params
+            # Remove any existing format, size, or misparsed region
             poster = poster.split("&format=")[0].split("&size=")[0]
-            poster = poster.replace("®ion=", "&region=")  # Fix the misinterpreted region
+            poster = poster.split("®ion=")[0]  # Remove any bad encoding
             poster += "&format=jpeg&size=3840x2160&region=US"
     except Exception as e:
         return await message.reply(f"❌ Failed to parse Hulu metadata: {e}", quote=True)
