@@ -1,14 +1,14 @@
-import httpx
 import logging
-from bs4 import BeautifulSoup
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
 
 # --- Setup logger ---
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# Console handler (show only warnings/errors)
+# Console handler (warnings/errors only)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.WARNING)
 console_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
@@ -23,38 +23,34 @@ file_handler.setFormatter(file_format)
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
 
-# Silence Pyrogram debug spam
+# Silence Pyrogram/TgCrypto debug spam
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 logging.getLogger("TgCrypto").setLevel(logging.WARNING)
 
 
-async def fetch_poster(url: str):
+async def fetch_posters(url: str):
+    """Fetch posters from BookMyShow using Playwright (bypasses Cloudflare)"""
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-            r = await client.get(url)
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            await page.goto(url, timeout=60000)
+            content = await page.content()
+            await browser.close()
 
-        logger.debug(f"Fetched URL: {url} | Status: {r.status_code}")
-        logger.debug(f"Response length: {len(r.text)} chars")
-        logger.debug(f"HTML preview: {r.text[:500]}")  # first 500 chars
+        logger.debug(f"Fetched URL: {url}")
+        logger.debug(f"HTML preview (first 500 chars): {content[:500]}")
 
-        soup = BeautifulSoup(r.text, "html.parser")
+        soup = BeautifulSoup(content, "html.parser")
         posters = []
 
-        # Look for meta og:image (property or name)
-        og_property = soup.find_all("meta", attrs={"property": "og:image"})
-        og_name = soup.find_all("meta", attrs={"name": "og:image"})
+        # Extract og:image
+        og_image = soup.find("meta", property="og:image")
+        if og_image:
+            posters.append(og_image.get("content"))
 
-        logger.debug(f"Found og:image (property): {og_property}")
-        logger.debug(f"Found og:image (name): {og_name}")
-
-        for tag in og_property + og_name:
-            posters.append(tag.get("content"))
-
-        # Extra fallback: BookMyShow asset images
-        imgs = soup.find_all("img")
-        logger.debug(f"Found {len(imgs)} <img> tags")
-
-        for img in imgs:
+        # Extra fallback: all BMS asset images
+        for img in soup.find_all("img"):
             src = img.get("src") or img.get("data-src")
             if src and "assets-in.bmscdn.com" in src:
                 posters.append(src)
@@ -62,10 +58,12 @@ async def fetch_poster(url: str):
         posters = list(set([p for p in posters if p]))
         logger.debug(f"Collected posters: {posters}")
 
-        return posters if posters else None
+        if not posters:
+            return None
+        return posters
 
     except Exception as e:
-        logger.exception("Error in fetch_poster")
+        logger.exception("Error in fetch_posters")
         return f"❌ Error: {e}"
 
 
@@ -77,12 +75,12 @@ async def poster_command(client: Client, message: Message):
     url = message.command[1]
     waiting = await message.reply_text("🔍 Fetching poster...")
 
-    result = await fetch_poster(url)
+    result = await fetch_posters(url)
     await waiting.delete()
 
     if not result:
         return await message.reply_text("❌ No poster found.")
-    if isinstance(result, str):  # error case
+    if isinstance(result, str):  # error message
         return await message.reply_text(result)
 
     # Send all posters
