@@ -33,7 +33,6 @@ async def sonyliv_handler(client, message):
             full_name = data.get("name", "Unknown")
 
             # Clean the title
-            # Remove prefix "Watch" and suffixes like "Online" or "- Sony LIV"
             title = re.sub(r'Watch\s+', '', full_name, flags=re.IGNORECASE)
             title = re.sub(r'\s*-\s*Sony LIV', '', title, flags=re.IGNORECASE)
             title = re.sub(r'\s*Online$', '', title, flags=re.IGNORECASE)
@@ -49,7 +48,7 @@ async def sonyliv_handler(client, message):
         title = "Unknown"
         year = "Unknown"
 
-    # 🔍 Poster extraction (your existing code)
+    # 🔍 Poster extraction
     all_images = re.findall(
         r'https?://[^\s"\']+videoasset_images/[^\s"\']+\.(?:jpg|jpeg|png|webp)',
         html, re.IGNORECASE
@@ -68,13 +67,12 @@ async def sonyliv_handler(client, message):
         if portrait and landscape:
             break
 
-    # 🔹 Build reply
-    result = [f"🎬 Title: {title}", f"📅 Year: {year}"]
+    # 🔹 Build reply in desired format
+    result = []
+    if landscape:
+        result.append(f"{landscape}")  # Landscape first, no label
     if portrait:
         result.append(f"🖼️ Portrait: {portrait}")
-    if landscape:
-        result.append(f"🖼️ Landscape: {landscape}")
-    if not portrait and not landscape:
-        result.append("❌ No poster found.")
+    result.append(f"{title} ({year})")  # Title + year at the bottom
 
     await message.reply("\n".join(result), disable_web_page_preview=True, quote=True)
