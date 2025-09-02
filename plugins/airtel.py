@@ -33,17 +33,20 @@ async def airtel_poster(client: Client, message: Message):
         year_match = re.search(r"(\d{4})", title_text)
         year = year_match.group(1) if year_match else "Unknown Year"
 
-        # Clean title (remove "Full Movie Online" or "HD Movies" text)
+        # Clean title: remove "Full Movie Online" or "HD Movies" text
         title_clean = re.sub(r"\s*-\s*Full Movie Online.*", "", title_text).strip()
 
-        # Extract poster
+        # Poster
         og_image = soup.find("meta", property="og:image")
         poster_url = og_image.get("content") if og_image else None
         if not poster_url:
             return await message.reply_text(f"❌ Poster not found for {title_clean}")
 
-        # Output
-        await message.reply_text(f"{poster_url}\n\n{title_clean} ({year})")
+        # Final title format: Title (Year)
+        final_title = f"{title_clean} ({year})"
+
+        # Send output
+        await message.reply_text(f"{poster_url}\n\n{final_title}")
 
     except Exception as e:
         await message.reply_text(f"❌ Error occurred:\n`{str(e)}`")
