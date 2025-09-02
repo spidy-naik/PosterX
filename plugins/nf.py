@@ -33,27 +33,22 @@ async def netflix_handler(client, message):
     title = video.get("title", "N/A")
     type_ = video.get("type", "movie")
 
-    # Get largest poster from a list
-    def get_largest_artwork(arts):
+    # Get first artwork poster
+    def get_first_artwork(arts):
         if not arts:
             return None
-        arts_sorted = sorted(arts, key=lambda x: x.get("w", 0), reverse=True)
-        return arts_sorted[0].get("url")
-
-    # Combine all possible artworks for fallback
-    main_artworks = video.get("artwork", []) + video.get("boxart", []) + video.get("storyart", [])
+        return arts[0].get("url")
 
     if type_ == "show" and video.get("seasons"):
         msg_list = []
         for season in video["seasons"]:
             season_name = season.get("longName") or season.get("shortName") or f"Season {season.get('seq', 1)}"
             season_year = season.get("year") or ""
-            # Try season artwork first, else fallback to main show artwork
-            season_artworks = season.get("artwork", [])
-            poster_url = get_largest_artwork(season_artworks) or get_largest_artwork(main_artworks) or "No poster found"
+            # Take first artwork from season, fallback to main video artwork
+            poster_url = get_first_artwork(season.get("artwork", [])) or get_first_artwork(video.get("artwork", [])) or "No poster found"
             msg_list.append(f"{poster_url}\n{title} - {season_name} - ({season_year})")
         await message.reply_text("\n\n".join(msg_list), quote=True)
     else:
         year = video.get("year", "N/A")
-        poster_url = get_largest_artwork(main_artworks) or "No poster found"
+        poster_url = get_first_artwork(video.get("artwork", [])) or "No poster found"
         await message.reply_text(f"{poster_url}\n{title} - ({year})", quote=True)
