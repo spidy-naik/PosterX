@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from pyrogram import Client, filters
 from datetime import datetime
 
-@Client.on_message(filters.command("appletv") & filters.private)
+@Client.on_message(filters.command("apple") & filters.private)
 async def appletv_poster(client, message):
     if len(message.command) < 2:
         return await message.reply_text(

@@ -3,7 +3,7 @@ import re
 from pyrogram import Client, filters
 import requests
 
-@Client.on_message(filters.command("sonyliv"))
+@Client.on_message(filters.command("sliv"))
 async def sonyliv_handler(client, message):
     if len(message.command) < 2:
         return await message.reply("❗ Usage:\n/sonyliv <SonyLIV Show URL>", quote=True)

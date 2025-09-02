@@ -6,7 +6,7 @@ from pyrogram.types import Message
 import re
 from datetime import datetime
 
-@Client.on_message(filters.command("zee5") & filters.private)
+@Client.on_message(filters.command("zee") & filters.private)
 async def zee5_poster(client: Client, message: Message):
     if len(message.command) < 2:
         return await message.reply_text(

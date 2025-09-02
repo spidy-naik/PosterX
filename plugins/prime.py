@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import re
 import json
 
-@Client.on_message(filters.command("prime") & filters.private)
+@Client.on_message(filters.command("pv") & filters.private)
 async def prime_poster_scraper(client, message: Message):
     if len(message.command) < 2:
         return await message.reply(
