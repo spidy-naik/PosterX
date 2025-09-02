@@ -4,14 +4,16 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 
-async def fetch_posters(url):
+async def fetch_posters(url: str):
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            await page.goto(url, timeout=60000)
-            content = await page.content()
-            await browser.close()
+            try:
+                page = await browser.new_page()
+                await page.goto(url, timeout=60000)
+                content = await page.content()
+            finally:
+                await browser.close()
 
         soup = BeautifulSoup(content, "html.parser")
         posters = []
@@ -27,11 +29,12 @@ async def fetch_posters(url):
             if src and "assets-in.bmscdn.com" in src:
                 posters.append(src)
 
-        if not posters:
-            return "❌ No posters found."
+        posters = list(set(posters))  # remove duplicates
 
-        posters = list(set(posters))
-        return "\n".join(posters)
+        if not posters:
+            return None
+
+        return posters
 
     except Exception as e:
         return f"❌ Error: {e}"
@@ -40,10 +43,23 @@ async def fetch_posters(url):
 @Client.on_message(filters.command("bms") & filters.private)
 async def poster_command(client: Client, message: Message):
     if len(message.command) < 2:
-        return await message.reply_text("❌ Send URL like:\n`/poster bms_url`")
+        return await message.reply_text("❌ Send URL like:\n`/bms bms_url`")
 
     url = message.command[1]
-    await message.reply_text("🔍 Fetching...")
+    waiting = await message.reply_text("🔍 Fetching...")
 
     result = await fetch_posters(url)
-    await message.reply_text(result)
+
+    await waiting.delete()
+
+    if not result:
+        return await message.reply_text("❌ No posters found.")
+    if isinstance(result, str):  # error case
+        return await message.reply_text(result)
+
+    # Send posters one by one
+    for poster in result:
+        try:
+            await message.reply_photo(poster)
+        except Exception:
+            await message.reply_text(poster)
