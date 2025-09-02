@@ -9,14 +9,14 @@ async def netflix_handler(client, message):
     
     url = message.command[1].strip()
     
-    # Extract movie/series ID
+    # Extract Netflix ID
     match = re.search(r'/title/(\d+)', url)
     if not match:
         return await message.reply("❌ Invalid Netflix URL!", quote=True)
     
     movie_id = match.group(1)
     
-    # Fetch data from API
+    # Fetch metadata from API
     api_url = f"https://netflix-en.gregory24thom-ps-on23-96.workers.dev/?movieid={movie_id}"
     try:
         resp = requests.get(api_url, timeout=10).json()
@@ -41,13 +41,13 @@ async def netflix_handler(client, message):
         return artworks[0].get("url", "")
     
     if type_ == "show" and video.get("seasons"):
+        # Series case: return poster for each season
         msg_list = []
         for season in video["seasons"]:
-            season_name = season.get("longName", "Season")
-            season_year = season.get("year", "")
+            season_name = season.get("longName") or season.get("shortName") or "Season"
+            season_year = season.get("year") or ""
             poster_url = get_poster(season.get("artwork", []))
             msg_list.append(f"{poster_url}\n{title} - {season_name} - ({season_year})")
-        
         await message.reply_text("\n\n".join(msg_list), quote=True)
     else:
         # Movie case
