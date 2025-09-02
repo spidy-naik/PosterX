@@ -1,0 +1,6 @@
+pyrofork 
+TgCrypto 
+beautifulsoup4
+requests
+aiohttp
+playwright 
