@@ -33,8 +33,8 @@ async def airtel_poster(client: Client, message: Message):
         year_match = re.search(r"(\d{4})", title_text)
         year = year_match.group(1) if year_match else "Unknown Year"
 
-        # Clean title: remove "Full Movie Online" or "HD Movies" text
-        title_clean = re.sub(r"\s*-\s*Full Movie Online.*", "", title_text).strip()
+        # Clean title: keep only text before the year
+        title_clean = re.split(r"\s*\(?"+year+r"\)?", title_text)[0].strip()
 
         # Poster
         og_image = soup.find("meta", property="og:image")
