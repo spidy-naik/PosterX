@@ -9,7 +9,7 @@ async def netflix_handler(client, message):
     
     url = message.command[1].strip()
     
-    # Extract movie/series ID from Netflix URL
+    # Extract movie/series ID
     match = re.search(r'/title/(\d+)', url)
     if not match:
         return await message.reply("❌ Invalid Netflix URL!", quote=True)
@@ -29,32 +29,37 @@ async def netflix_handler(client, message):
     video = resp.get("metadata", {}).get("video", {})
     title = video.get("title", "N/A")
     year = video.get("year", "N/A")
-    synopsis = video.get("synopsis", "No synopsis available")
     type_ = video.get("type", "movie")
     
-    # Get main poster (1280x720 preferred)
-    poster_url = None
-    for art in video.get("artwork", []):
-        if art.get("w") == 1280 and art.get("h") == 720:
-            poster_url = art.get("url")
-            break
-    if not poster_url:
-        poster_url = video.get("artwork", [{}])[0].get("url", "")
-    
-    # Prepare main message
-    msg = f"🎬 <b>{title}</b> ({year})\n📝 {synopsis}\n\n"
-    
-    # If series, add seasons info
+    # If it's a series, show each season
     if type_ == "show" and video.get("seasons"):
+        msg_list = []
         for season in video["seasons"]:
             season_name = season.get("longName", "Season")
             season_year = season.get("year", "")
-            msg += f"📺 {season_name} ({season_year})\n"
-            for ep in season.get("episodes", []):
-                ep_title = ep.get("title", "Episode")
-                ep_synopsis = ep.get("synopsis", "")
-                msg += f"• {ep_title} - {ep_synopsis}\n"
-            msg += "\n"
+            # Get poster (1280x720 preferred)
+            poster_url = None
+            for art in season.get("artwork", []):
+                if art.get("w") == 1280 and art.get("h") == 720:
+                    poster_url = art.get("url")
+                    break
+            if not poster_url:
+                poster_url = season.get("artwork", [{}])[0].get("url", "")
+            
+            msg_list.append(f"{poster_url}\n{title} - {season_name} - ({season_year})")
+        
+        # Send all seasons as one message
+        await message.reply_text("\n\n".join(msg_list), quote=True)
     
-    # Send poster + message
-    await message.reply_text(f"{poster_url}\n\n{msg}", quote=True)
+    else:
+        # Movie case
+        # Get main poster (1280x720 preferred)
+        poster_url = None
+        for art in video.get("artwork", []):
+            if art.get("w") == 1280 and art.get("h") == 720:
+                poster_url = art.get("url")
+                break
+        if not poster_url:
+            poster_url = video.get("artwork", [{}])[0].get("url", "")
+        
+        await message.reply_text(f"{poster_url}\n{title} - ({year})", quote=True)
