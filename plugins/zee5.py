@@ -1,8 +1,9 @@
-import re
 import requests
 from bs4 import BeautifulSoup
+import json
 from pyrogram import Client, filters
 from pyrogram.types import Message
+import re
 from datetime import datetime
 
 @Client.on_message(filters.command("zee5") & filters.private)
@@ -13,44 +14,46 @@ async def zee5_poster(client: Client, message: Message):
         )
 
     url = message.command[1]
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/139.0.0.0 Safari/537.36"
+    }
 
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                          "AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/139.0.0.0 Safari/537.36"
-        }
-        response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code != 200:
-            return await message.reply_text(f"❌ Failed to fetch page. Status code: {response.status_code}")
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.status_code != 200:
+            return await message.reply_text(f"❌ Failed to fetch page, status code: {r.status_code}")
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        soup = BeautifulSoup(r.text, "html.parser")
 
-        # Extract title from twitter:title
-        title_tag = soup.find("meta", attrs={"name": "twitter:title"})
-        title_text = title_tag.get("content") if title_tag else "Unknown Title"
+        # Extract JSON from <script id="videoObject">
+        script_tag = soup.find("script", id="videoObject")
+        if not script_tag:
+            return await message.reply_text("❌ Could not find movie JSON data.")
 
-        # Extract release year from title
-        year_match = re.search(r"\((\d{4})\)", title_text)
-        year = year_match.group(1) if year_match else "Unknown Year"
+        data = json.loads(script_tag.string)
+        
+        title = data.get("name", [{}])[0].get("@value", "Unknown Title")
+        description = data.get("description", [{}])[0].get("@value", "")
+        landscape = data.get("thumbnailUrl", [None])[0]
+        page_url = data.get("contentUrl")
+        embed_url = data.get("embedUrl")
+        actors = ", ".join(data.get("actors", []))
+        director = ", ".join(data.get("director", []))
+        duration = data.get("duration", "Unknown")
+        release_date = data.get("uploadDate", "Unknown")
+        try:
+            year = datetime.strptime(release_date, "%Y-%m-%d").year
+        except:
+            year = "Unknown"
 
-        # Extract landscape poster from twitter:image
-        poster_tag = soup.find("meta", attrs={"name": "twitter:image"})
-        landscape = poster_tag.get("content") if poster_tag else None
-
-        # Optionally, portrait poster (some ZEE5 pages may have it in img src containing "portrait")
-        portrait_img = soup.find("img", src=re.compile(r"portrait"))
-        portrait = portrait_img.get("src") if portrait_img else None
-
-        if not landscape and not portrait:
-            return await message.reply_text("❌ No posters found.")
-
-        caption = f"🎬 **{title_text}** ({year})\n\n"
-        if landscape:
-            caption += f"**Landscape Poster:**\n{landscape}\n\n"
-        if portrait:
-            caption += f"**Portrait Poster:**\n{portrait}\n\n"
-        caption += "cc: @SpeXmen"
+        caption = f"🎬 **{title} ({year})**\n\n"
+        caption += f"**Description:** {description}\n"
+        caption += f"**Director:** {director}\n**Actors:** {actors}\n"
+        caption += f"**Duration:** {duration}\n\n"
+        caption += f"**Page URL:** {page_url}\n**Embed URL:** {embed_url}\n\n"
+        caption += f"**Landscape Poster:** {landscape}"
 
         await message.reply_text(caption)
 
