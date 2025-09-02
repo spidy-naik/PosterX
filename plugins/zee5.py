@@ -1,73 +1,56 @@
-from pyrogram import Client, filters
-from pyrogram.types import Message
 import re
 import requests
+from bs4 import BeautifulSoup
+from pyrogram import Client, filters
+from pyrogram.types import Message
 from datetime import datetime
 
 @Client.on_message(filters.command("zee5") & filters.private)
 async def zee5_poster(client: Client, message: Message):
     if len(message.command) < 2:
         return await message.reply_text(
-            "❌ Please send a valid ZEE5 URL.\nExample:\n`/zee5 https://zee5.com/...`"
+            "❌ Please send a valid ZEE5 URL.\nExample:\n`/zee5 https://www.zee5.com/movies/details/tehran/...`"
         )
 
     url = message.command[1]
 
-    # Extract content ID (last part of URL)
-    match = re.search(r'/([0-9a-zA-Z-]+)$', url)
-    if not match:
-        return await message.reply_text("❌ Invalid ZEE5 URL format.")
-    content_id = match.group(1)
-
-    # Dummy headers/data for testing (replace with real tokens if needed)
-    params = {
-        'content_id': content_id,
-        'device_id': 'dummy-device-id',
-        'platform_name': 'mobile_web',
-        'translation': 'en',
-        'user_language': 'hi',
-        'country': 'IN',
-        'check_parental_control': 'false',
-    }
-
-    json_data = {
-        'x-access-token': 'dummy-token',
-        'X-Z5-Guest-Token': 'dummy-guest-token',
-    }
-
     try:
-        response = requests.post(
-            'https://spapi.zee5.com/singlePlayback/getDetails/secure',
-            params=params,
-            json=json_data,
-            timeout=20
-        )
-        data = response.json()
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/139.0.0.0 Safari/537.36"
+        }
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code != 200:
+            return await message.reply_text(f"❌ Failed to fetch page. Status code: {response.status_code}")
 
-        asset = data.get('assetDetails', {})
-        if not asset:
-            return await message.reply_text("❌ No asset details found.")
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        title = asset.get('title', 'Unknown Title')
-        landscape = asset.get('list_image') or ''
-        portrait = asset.get('cover_image') or ''
-        release_date = asset.get('release_date', '')
+        # Extract title from twitter:title
+        title_tag = soup.find("meta", attrs={"name": "twitter:title"})
+        title_text = title_tag.get("content") if title_tag else "Unknown Title"
 
-        # Parse release year
-        try:
-            release_year = datetime.strptime(release_date, "%Y-%m-%dT%H:%M:%S").year
-        except:
-            release_year = "Unknown"
+        # Extract release year from title
+        year_match = re.search(r"\((\d{4})\)", title_text)
+        year = year_match.group(1) if year_match else "Unknown Year"
 
-        if not (landscape or portrait):
-            return await message.reply_text("❌ No poster images found.")
+        # Extract landscape poster from twitter:image
+        poster_tag = soup.find("meta", attrs={"name": "twitter:image"})
+        landscape = poster_tag.get("content") if poster_tag else None
 
-        caption = f"**{title}** ({release_year})\n\n"
+        # Optionally, portrait poster (some ZEE5 pages may have it in img src containing "portrait")
+        portrait_img = soup.find("img", src=re.compile(r"portrait"))
+        portrait = portrait_img.get("src") if portrait_img else None
+
+        if not landscape and not portrait:
+            return await message.reply_text("❌ No posters found.")
+
+        caption = f"🎬 **{title_text}** ({year})\n\n"
         if landscape:
-            caption += f"**Landscape Poster**:\n{landscape}\n\n"
+            caption += f"**Landscape Poster:**\n{landscape}\n\n"
         if portrait:
-            caption += f"**Portrait Poster**:\n{portrait}\n\n"
-        caption += "cc: @Mr_SPIDY"
+            caption += f"**Portrait Poster:**\n{portrait}\n\n"
+        caption += "cc: @SpeXmen"
 
         await message.reply_text(caption)
 
