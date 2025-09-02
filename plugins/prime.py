@@ -29,18 +29,16 @@ async def prime_poster_scraper(client, message: Message):
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        # 🎬 Title
+        # 🎬 Title (take only base title before first '-')
         raw_title = soup.title.string if soup.title else "Unknown Title"
-        clean_title = raw_title.replace("Prime Video:", "").strip()
+        clean_title = raw_title.replace("Prime Video:", "").split(" - ")[0].strip()
 
         # 📅 Release Year
         release_year = None
         for tag in soup.find_all(["span", "li", "div"]):
             if tag.string and re.search(r'\b(19|20)\d{2}\b', tag.string):
-                match = re.search(r'\b(19|20)\d{2}\b', tag.string)
-                if match:
-                    release_year = match.group()
-                    break
+                release_year = re.search(r'\b(19|20)\d{2}\b', tag.string).group()
+                break
 
         # 📀 Season Info
         season = None
@@ -49,7 +47,7 @@ async def prime_poster_scraper(client, message: Message):
                 season = re.search(r"(Season\s*\d+)", tag.string, re.IGNORECASE).group(1)
                 break
 
-        # 🖼 Posters (parse "images": {...})
+        # 🖼 Posters
         posters = {}
         seen_urls = set()
         for script in soup.find_all("script"):
@@ -62,7 +60,7 @@ async def prime_poster_scraper(client, message: Message):
                 if match:
                     try:
                         images_json = match.group(1)
-                        images_json = re.sub(r',\s*}', '}', images_json)  # fix trailing commas
+                        images_json = re.sub(r',\s*}', '}', images_json)
                         images = json.loads(images_json)
                         for key, img_url in images.items():
                             if img_url not in seen_urls:
@@ -71,7 +69,7 @@ async def prime_poster_scraper(client, message: Message):
                     except Exception:
                         pass
 
-        # fallback: old regex titleshot/covershot
+        # fallback
         if not posters:
             for script in soup.find_all("script"):
                 content = script.string or (script.contents[0] if script.contents else "")
@@ -83,20 +81,18 @@ async def prime_poster_scraper(client, message: Message):
                             posters[category.lower()] = img_url
                             seen_urls.add(img_url)
 
-        # 🖨 Output (cleaned)
+        # 🖨 Build final output
         reply_text = ""
 
-        # Main poster (covershot)
         if "covershot" in posters:
             reply_text += f"{posters['covershot']}\n\n"
 
-        # Portrait (packshot)
         if "packshot" in posters:
             reply_text += f"Portrait: {posters['packshot']}\n\n"
 
-        # Title + Season + Year (avoid duplication)
+        # ✅ Use only season & year from scraped data
         final_title = clean_title
-        if season and season.lower() not in final_title.lower():
+        if season:
             final_title += f" - {season}"
         if release_year:
             final_title += f" - ({release_year})"
@@ -106,6 +102,4 @@ async def prime_poster_scraper(client, message: Message):
         await message.reply(reply_text, disable_web_page_preview=False)
 
     except Exception as e:
-        await message.reply(
-            f"❌ Failed to fetch data.\n<b>Error:</b> <code>{str(e)}</code>"
-        )
+        await message.reply(f"❌ Failed to fetch data.\n<b>Error:</b> <code>{str(e)}</code>")
