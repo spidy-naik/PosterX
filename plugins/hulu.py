@@ -35,15 +35,18 @@ async def hulu_poster(client, message):
 
         poster = data.get("image", "")
         if poster:
-            # Parse URL
+            # Parse the URL and query
             parsed_url = urlparse(poster)
             query = parse_qs(parsed_url.query)
 
-            # Keep only essential parameters
-            query = {k: v[0] for k, v in query.items() if k in ["base_image_bucket_name", "base_image"]}
+            # Keep only the essential keys
+            query = {
+                k: v[0] for k, v in query.items() 
+                if k in ["base_image_bucket_name", "base_image"]
+            }
 
             # Add high-res parameters
-            query.update({"format": "jpeg", "size": "3840x2160", "region": "US"})
+            query.update({"format": "jpeg", "size": "3840x2160"})
 
             # Rebuild URL
             poster = urlunparse(
