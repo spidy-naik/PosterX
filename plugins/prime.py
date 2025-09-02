@@ -49,10 +49,9 @@ async def prime_poster_scraper(client, message: Message):
                 season = re.search(r"(Season\s*\d+)", tag.string, re.IGNORECASE).group(1)
                 break
 
-        # 🖼 Posters (improved: parse "images": {...})
+        # 🖼 Posters (parse "images": {...})
         posters = {}
         seen_urls = set()
-
         for script in soup.find_all("script"):
             content = script.string or (script.contents[0] if script.contents else "")
             if not content:
@@ -65,7 +64,6 @@ async def prime_poster_scraper(client, message: Message):
                         images_json = match.group(1)
                         images_json = re.sub(r',\s*}', '}', images_json)  # fix trailing commas
                         images = json.loads(images_json)
-
                         for key, img_url in images.items():
                             if img_url not in seen_urls:
                                 posters[key.lower()] = img_url
@@ -85,7 +83,7 @@ async def prime_poster_scraper(client, message: Message):
                             posters[category.lower()] = img_url
                             seen_urls.add(img_url)
 
-        # 🖨 Output (custom format)
+        # 🖨 Output (cleaned)
         reply_text = ""
 
         # Main poster (covershot)
@@ -96,12 +94,14 @@ async def prime_poster_scraper(client, message: Message):
         if "packshot" in posters:
             reply_text += f"Portrait: {posters['packshot']}\n\n"
 
-        # Title + Season + Year
-        reply_text += f"{clean_title}"
-        if season:
-            reply_text += f" - {season}"
+        # Title + Season + Year (avoid duplication)
+        final_title = clean_title
+        if season and season.lower() not in final_title.lower():
+            final_title += f" - {season}"
         if release_year:
-            reply_text += f" - ({release_year})"
+            final_title += f" - ({release_year})"
+
+        reply_text += final_title
 
         await message.reply(reply_text, disable_web_page_preview=False)
 
