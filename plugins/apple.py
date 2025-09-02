@@ -1,11 +1,11 @@
+import json
 import requests
 from bs4 import BeautifulSoup
 from pyrogram import Client, filters
 from datetime import datetime
-import re
 
 @Client.on_message(filters.command("appletv") & filters.private)
-async def appletv_poster(client: Client, message):
+async def appletv_poster(client, message):
     if len(message.command) < 2:
         return await message.reply_text(
             "❌ Please send a valid Apple TV movie URL.\nExample:\n`/appletv https://tv.apple.com/us/movie/manje-bistre/...`"
@@ -22,25 +22,24 @@ async def appletv_poster(client: Client, message):
         r = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Poster image
-        poster_url = soup.find("meta", property="og:image").get("content")
+        # Extract JSON from script tag
+        script_tag = soup.find("script", {"id": "schema:movie", "type": "application/ld+json"})
+        movie_json = json.loads(script_tag.string)
+
+        # Poster URL
+        poster_url = movie_json.get("image")
 
         # Title
-        title_text = soup.find("meta", property="og:title").get("content")
-        # Remove "- Apple TV" and any weird characters
-        title_clean = re.split(r"\s*-\s*Apple TV", title_text, flags=re.I)[0].replace("\xa0", " ").strip()
+        title = movie_json.get("name", "Unknown Title")
 
         # Year
-        release_date_tag = soup.find("meta", property="og:video:release_date")
-        if release_date_tag:
-            try:
-                year = datetime.fromisoformat(release_date_tag.get("content").replace("Z", "")).year
-            except:
-                year = "Unknown"
-        else:
+        date_published = movie_json.get("datePublished", "")
+        try:
+            year = datetime.fromisoformat(date_published.replace("Z", "")).year
+        except:
             year = "Unknown"
 
-        final_title = f"{title_clean} ({year})"
+        final_title = f"{title} ({year})"
 
         await message.reply_text(f"{poster_url}\n\n{final_title}")
 
