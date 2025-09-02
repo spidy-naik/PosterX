@@ -78,4 +78,4 @@ async def sonyliv_handler(client, message):
         result.append(f"Portrait: {portrait}\n")  # Portrait with cleaner label
     result.append(f"{title} ({year})")  # Clean title + year
 
-    await message.reply("\n".join(result), disable_web_page_preview=True, quote=True)
+    await message.reply("\n".join(result), quote=True)
