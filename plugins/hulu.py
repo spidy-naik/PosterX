@@ -1,11 +1,12 @@
 from pyrogram import Client, filters
 import httpx
+import json
 from bs4 import BeautifulSoup
 
 @Client.on_message(filters.command("hulu"))
 async def hulu_poster(client, message):
     if len(message.command) < 2:
-        return await message.reply("❌ Usage: /hulu <Hulu Series/Movie URL>", quote=True)
+        return await message.reply("❌ Usage: /hulu <Hulu URL>", quote=True)
 
     url = message.command[1].strip()
 
@@ -19,23 +20,28 @@ async def hulu_poster(client, message):
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Try to get poster from twitter:image or og:image
-    poster_url = (
-        soup.find("meta", property="twitter:image") or 
-        soup.find("meta", property="og:image")
-    )
+    # Extract the JSON-LD script
+    json_ld = soup.find("script", type="application/ld+json")
+    if not json_ld:
+        return await message.reply("❌ Hulu metadata not found!", quote=True)
 
-    if poster_url and poster_url.get("content"):
-        poster = poster_url["content"]
-    else:
-        return await message.reply("❌ Poster not found!", quote=True)
+    try:
+        data = json.loads(json_ld.string)
+        title = data.get("name", "Hulu Content")
+        description = data.get("description", "")
+        poster = data.get("image", "")
+        # Year from releasedEvent.startDate
+        year = None
+        if "releasedEvent" in data and data["releasedEvent"].get("startDate"):
+            year = data["releasedEvent"]["startDate"].split("-")[0]
+    except Exception as e:
+        return await message.reply(f"❌ Failed to parse Hulu metadata: {e}", quote=True)
 
-    # Get title
-    title_meta = soup.find("meta", property="og:title") or soup.find("meta", attrs={"name":"title"})
-    title = title_meta["content"] if title_meta and title_meta.get("content") else "Hulu Content"
+    msg = f"**Title:** {title}\n"
+    if year:
+        msg += f"**Year:** {year}\n"
+    msg += f"**Poster:** {poster}\n"
+    if description:
+        msg += f"**Description:** {description}"
 
-    # Get description (optional)
-    desc_meta = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name":"description"})
-    desc = desc_meta["content"] if desc_meta and desc_meta.get("content") else ""
-
-    await message.reply_text(f"{poster}\n{title}\n{desc}", quote=True)
+    await message.reply_text(msg, quote=True)
