@@ -21,16 +21,27 @@ async def sonyliv_handler(client, message):
     except Exception as e:
         return await message.reply(f"❌ Failed to fetch page:\n{e}", quote=True)
 
-    # 🔍 Extract JSON-LD script for name and year
-    jsonld_match = re.search(r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>', html, re.DOTALL | re.IGNORECASE)
+    # 🔍 Extract JSON-LD script
+    jsonld_match = re.search(
+        r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>',
+        html, re.DOTALL | re.IGNORECASE
+    )
+
     if jsonld_match:
         try:
             data = json.loads(jsonld_match.group(1))
-            full_name = data.get("name", "Unknown").strip()
-            # Extract year from the name using regex (usually in format "Movie Name 2025")
-            year_match = re.search(r'(\d{4})', full_name)
-            year = year_match.group(1) if year_match else "Unknown"
-            title = full_name.split("-")[0].strip()  # remove any suffix like "- Sony LIV"
+            full_name = data.get("name", "Unknown")
+
+            # Clean the title
+            # Remove prefix "Watch" and suffixes like "Online" or "- Sony LIV"
+            title = re.sub(r'Watch\s+', '', full_name, flags=re.IGNORECASE)
+            title = re.sub(r'\s*-\s*Sony LIV', '', title, flags=re.IGNORECASE)
+            title = re.sub(r'\s*Online$', '', title, flags=re.IGNORECASE)
+            title = title.strip()
+
+            # Extract year from uploadDate
+            upload_date = data.get("uploadDate", "")
+            year = upload_date[:4] if upload_date else "Unknown"
         except Exception:
             title = "Unknown"
             year = "Unknown"
