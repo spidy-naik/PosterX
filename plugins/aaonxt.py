@@ -31,11 +31,13 @@ async def aaonxt_poster(client, message):
 
         title = movie_data.get("title", "AAONXT Content")
         year = movie_data.get("year", "Unknown")
-        poster = movie_data.get("cardImage", "")
+
+        # Extract poster from tvBannerImage
+        poster = movie_data.get("tvBannerImage", "")
 
     except Exception as e:
         return await message.reply(f"❌ Failed to parse AAONXT metadata: {e}", quote=True)
 
     # Final output
-    msg = f"{poster}\n\n{title} ({year})"
+    msg = f"{poster}/ogImage\n\n{title} ({year})"
     await message.reply_text(msg, quote=True)
