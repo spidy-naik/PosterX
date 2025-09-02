@@ -39,5 +39,9 @@ async def aaonxt_poster(client, message):
         return await message.reply(f"❌ Failed to parse AAONXT metadata: {e}", quote=True)
 
     # Final output
-    msg = f"{poster}/ogImage\n\n{title} ({year})"
+    if poster:
+        msg = f"{poster}/ogImage\n\n{title} ({year})"
+    else:
+        msg = "Poster Not Found"
+        
     await message.reply_text(msg, quote=True)
