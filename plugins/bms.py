@@ -29,47 +29,45 @@ logging.getLogger("TgCrypto").setLevel(logging.WARNING)
 
 
 async def fetch_posters(url: str):
-    """Fetch posters from BookMyShow using stealth Playwright (bypasses Cloudflare)"""
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
 
-            # Stealth: set realistic user-agent and hide webdriver
-            await page.set_user_agent(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/139.0.0.0 Safari/537.36"
+            # Create a context with user-agent
+            context = await browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/139.0.0.0 Safari/537.36"
+                )
             )
-            await page.evaluate("() => { Object.defineProperty(navigator, 'webdriver', {get: () => undefined}) }")
+
+            page = await context.new_page()
+
+            # Hide webdriver property
+            await page.evaluate(
+                "() => { Object.defineProperty(navigator, 'webdriver', {get: () => undefined}) }"
+            )
 
             await page.goto(url, timeout=60000)
             content = await page.content()
             await browser.close()
 
-        logger.debug(f"Fetched URL: {url}")
-        logger.debug(f"HTML preview (first 500 chars): {content[:500]}")
-
+        # Parse HTML
         soup = BeautifulSoup(content, "html.parser")
         posters = []
 
-        # Extract main og:image
         og_image = soup.find("meta", property="og:image")
         if og_image:
             posters.append(og_image.get("content"))
 
-        # Extra fallback: all BMS asset images
         for img in soup.find_all("img"):
             src = img.get("src") or img.get("data-src")
             if src and "assets-in.bmscdn.com" in src:
                 posters.append(src)
 
         posters = list(set([p for p in posters if p]))
-        logger.debug(f"Collected posters: {posters}")
-
-        if not posters:
-            return None
-        return posters
+        return posters if posters else None
 
     except Exception as e:
         logger.exception("Error in fetch_posters")
