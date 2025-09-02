@@ -41,23 +41,14 @@ async def netflix_handler(client, message):
         return artworks[0].get("url", "")
     
     if type_ == "show" and video.get("seasons"):
-        # Series case: return poster for each season and optionally first episode
+        # Series case: return poster for each season only
         msg_list = []
         for season in video["seasons"]:
             season_name = season.get("longName") or season.get("shortName") or "Season"
             season_year = season.get("year") or ""
             poster_url = get_poster(season.get("artwork", []))
             
-            # Include first episode if available
-            episodes = season.get("episodes", [])
-            episode_info = ""
-            if episodes:
-                ep = episodes[0]
-                ep_title = ep.get("title", "Episode")
-                ep_year = ep.get("year", "")
-                episode_info = f" - {ep_title} ({ep_year})"
-            
-            msg_list.append(f"{poster_url}\n{title} - {season_name}{episode_info} - ({season_year})")
+            msg_list.append(f"{poster_url}\n{title} - {season_name} - ({season_year})")
         
         await message.reply_text("\n\n".join(msg_list), quote=True)
     
