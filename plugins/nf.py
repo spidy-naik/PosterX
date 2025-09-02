@@ -33,22 +33,20 @@ async def netflix_handler(client, message):
     title = video.get("title", "N/A")
     type_ = video.get("type", "movie")
 
-    # Get first artwork poster
-    def get_first_artwork(arts):
-        if not arts:
-            return None
-        return arts[0].get("url")
+    # Always take the first artwork from the main video
+    def get_main_artwork():
+        arts = video.get("artwork", [])
+        return arts[0].get("url") if arts else "No poster found"
+
+    poster_url = get_main_artwork()
 
     if type_ == "show" and video.get("seasons"):
         msg_list = []
         for season in video["seasons"]:
             season_name = season.get("longName") or season.get("shortName") or f"Season {season.get('seq', 1)}"
             season_year = season.get("year") or ""
-            # Take first artwork from season, fallback to main video artwork
-            poster_url = get_first_artwork(season.get("artwork", [])) or get_first_artwork(video.get("artwork", [])) or "No poster found"
             msg_list.append(f"{poster_url}\n{title} - {season_name} - ({season_year})")
         await message.reply_text("\n\n".join(msg_list), quote=True)
     else:
         year = video.get("year", "N/A")
-        poster_url = get_first_artwork(video.get("artwork", [])) or "No poster found"
         await message.reply_text(f"{poster_url}\n{title} - ({year})", quote=True)
