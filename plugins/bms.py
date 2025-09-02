@@ -3,6 +3,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+import re
 
 # --- Logger setup ---
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ async def fetch_movie_info(url: str):
                 )
             )
             page = await context.new_page()
+            # Hide webdriver property for stealth
             await page.evaluate(
                 "() => { Object.defineProperty(navigator, 'webdriver', {get: () => undefined}) }"
             )
@@ -41,12 +43,11 @@ async def fetch_movie_info(url: str):
 
         soup = BeautifulSoup(content, "html.parser")
 
-        # Extract title and year
+        # Extract title
         og_title = soup.find("meta", property="og:title")
         title_text = og_title.get("content") if og_title else "Unknown Title"
 
-        # Try extracting year from title (usually in parentheses)
-        import re
+        # Extract year from title
         year_match = re.search(r"\((\d{4})\)", title_text)
         year = year_match.group(1) if year_match else "Unknown Year"
 
