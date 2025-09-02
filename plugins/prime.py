@@ -58,19 +58,17 @@ async def prime_poster_scraper(client, message: Message):
             if not content:
                 continue
 
-            # Look for JSON "images": {...}
             if '"images":' in content:
                 match = re.search(r'"images"\s*:\s*({.*?})', content)
                 if match:
                     try:
                         images_json = match.group(1)
-                        # clean trailing commas if any
-                        images_json = re.sub(r',\s*}', '}', images_json)
+                        images_json = re.sub(r',\s*}', '}', images_json)  # fix trailing commas
                         images = json.loads(images_json)
 
                         for key, img_url in images.items():
                             if img_url not in seen_urls:
-                                posters[key] = img_url
+                                posters[key.lower()] = img_url
                                 seen_urls.add(img_url)
                     except Exception:
                         pass
@@ -84,22 +82,26 @@ async def prime_poster_scraper(client, message: Message):
                     matches = re.findall(pattern, content)
                     for category, img_url in matches:
                         if img_url not in seen_urls:
-                            posters[category] = img_url
+                            posters[category.lower()] = img_url
                             seen_urls.add(img_url)
 
-        # 🖨 Output
-        reply_text = f"<b>🎬 Title:</b> <code>{clean_title}</code>\n"
-        if release_year:
-            reply_text += f"<b>📅 Year:</b> <code>{release_year}</code>\n"
-        if season:
-            reply_text += f"<b>📀 Season:</b> <code>{season}</code>\n"
+        # 🖨 Output (custom format)
+        reply_text = ""
 
-        if posters:
-            reply_text += "\n<b>🖼 Posters:</b>\n"
-            for category, img in posters.items():
-                reply_text += f"• <b>{category.capitalize()}</b>: <a href=\"{img}\">Link</a>\n"
-        else:
-            reply_text += "\n❌ No poster found."
+        # Main poster (covershot)
+        if "covershot" in posters:
+            reply_text += f"{posters['covershot']}\n\n"
+
+        # Portrait (packshot)
+        if "packshot" in posters:
+            reply_text += f"Portrait: {posters['packshot']}\n\n"
+
+        # Title + Season + Year
+        reply_text += f"{clean_title}"
+        if season:
+            reply_text += f" - {season}"
+        if release_year:
+            reply_text += f" - ({release_year})"
 
         await message.reply(reply_text, disable_web_page_preview=False)
 
