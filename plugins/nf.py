@@ -31,35 +31,25 @@ async def netflix_handler(client, message):
     year = video.get("year", "N/A")
     type_ = video.get("type", "movie")
     
-    # If it's a series, show each season
+    # Helper to get poster URL (prefer 1280x720)
+    def get_poster(artworks):
+        if not artworks:
+            return ""
+        for art in artworks:
+            if art.get("w") == 1280 and art.get("h") == 720:
+                return art.get("url")
+        return artworks[0].get("url", "")
+    
     if type_ == "show" and video.get("seasons"):
         msg_list = []
         for season in video["seasons"]:
             season_name = season.get("longName", "Season")
             season_year = season.get("year", "")
-            # Get poster (1280x720 preferred)
-            poster_url = None
-            for art in season.get("artwork", []):
-                if art.get("w") == 1280 and art.get("h") == 720:
-                    poster_url = art.get("url")
-                    break
-            if not poster_url:
-                poster_url = season.get("artwork", [{}])[0].get("url", "")
-            
+            poster_url = get_poster(season.get("artwork", []))
             msg_list.append(f"{poster_url}\n{title} - {season_name} - ({season_year})")
         
-        # Send all seasons as one message
         await message.reply_text("\n\n".join(msg_list), quote=True)
-    
     else:
         # Movie case
-        # Get main poster (1280x720 preferred)
-        poster_url = None
-        for art in video.get("artwork", []):
-            if art.get("w") == 1280 and art.get("h") == 720:
-                poster_url = art.get("url")
-                break
-        if not poster_url:
-            poster_url = video.get("artwork", [{}])[0].get("url", "")
-        
+        poster_url = get_poster(video.get("artwork", []))
         await message.reply_text(f"{poster_url}\n{title} - ({year})", quote=True)
