@@ -33,19 +33,22 @@ async def hulu_poster(client, message):
         if "releasedEvent" in data and data["releasedEvent"].get("startDate"):
             year = data["releasedEvent"]["startDate"].split("-")[0]
 
-        # Extract the original poster URL
         poster = data.get("image", "")
-
         if poster:
-            # Replace any mis-encoded ® with r
-            poster = poster.replace("®", "r")
+            # Parse URL
+            parsed_url = urlparse(poster)
+            query = parse_qs(parsed_url.query)
 
-            # Remove any existing format or size
-            poster = poster.split("&format=")[0].split("&size=")[0]
+            # Keep only essential parameters
+            query = {k: v[0] for k, v in query.items() if k in ["base_image_bucket_name", "base_image"]}
 
-            # Rebuild the high-res URL correctly
-            poster += "&format=jpeg&size=3840x2160&region=US"
+            # Add high-res parameters
+            query.update({"format": "jpeg", "size": "3840x2160", "region": "US"})
 
+            # Rebuild URL
+            poster = urlunparse(
+                (parsed_url.scheme, parsed_url.netloc, parsed_url.path, "", urlencode(query), "")
+            )
 
     except Exception as e:
         return await message.reply(f"❌ Failed to parse Hulu metadata: {e}", quote=True)
