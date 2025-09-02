@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 import httpx
 import json
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 @Client.on_message(filters.command("hulu"))
 async def hulu_poster(client, message):
@@ -32,13 +33,14 @@ async def hulu_poster(client, message):
         if "releasedEvent" in data and data["releasedEvent"].get("startDate"):
             year = data["releasedEvent"]["startDate"].split("-")[0]
 
-        # Get poster and convert to high-res JPEG
+        # Get poster and rebuild clean high-res URL
         poster = data.get("image", "")
         if poster:
-            # Remove any existing format, size, or misparsed region
-            poster = poster.split("&format=")[0].split("&size=")[0]
-            poster = poster.split("®ion=")[0]  # Remove any bad encoding
-            poster += "&format=jpeg&size=3840x2160&region=US"
+            # Parse the URL and remove all query params
+            parsed = urlparse(poster)
+            clean_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+            # Append desired format and size
+            poster = f"{clean_url}?format=jpeg&size=3840x2160"
     except Exception as e:
         return await message.reply(f"❌ Failed to parse Hulu metadata: {e}", quote=True)
 
