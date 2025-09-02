@@ -35,27 +35,26 @@ async def zee5_poster(client: Client, message: Message):
         data = json.loads(script_tag.string)
         
         title = data.get("name", [{}])[0].get("@value", "Unknown Title")
-        description = data.get("description", [{}])[0].get("@value", "")
-        landscape = data.get("thumbnailUrl", [None])[0]
-        page_url = data.get("contentUrl")
-        embed_url = data.get("embedUrl")
-        actors = ", ".join(data.get("actors", []))
-        director = ", ".join(data.get("director", []))
-        duration = data.get("duration", "Unknown")
         release_date = data.get("uploadDate", "Unknown")
         try:
             year = datetime.strptime(release_date, "%Y-%m-%d").year
         except:
             year = "Unknown"
 
-        caption = f"🎬 **{title} ({year})**\n\n"
-        caption += f"**Description:** {description}\n"
-        caption += f"**Director:** {director}\n**Actors:** {actors}\n"
-        caption += f"**Duration:** {duration}\n\n"
-        caption += f"**Page URL:** {page_url}\n**Embed URL:** {embed_url}\n\n"
-        caption += f"**Landscape Poster:** {landscape}"
+        # Extract poster and clean URL
+        poster_url = data.get("thumbnailUrl", [None])[0]
+        if not poster_url:
+            return await message.reply_text("❌ Poster not found.")
 
-        await message.reply_text(caption)
+        # Clean poster URL to remove size/format parameters
+        match = re.search(r"(\/resources\/.*)", poster_url)
+        if match:
+            clean_poster = f"https://akamaividz2.zee5.com/image/upload{match.group(1)}"
+        else:
+            clean_poster = poster_url  # fallback
+
+        # Reply
+        await message.reply_text(f"{clean_poster}\n\n{title} ({year})")
 
     except Exception as e:
         await message.reply_text(f"❌ Error occurred:\n`{str(e)}`")
