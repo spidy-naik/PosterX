@@ -39,7 +39,7 @@ async def sonyliv_handler(client, message):
             title = title.strip()
 
             # Keep only main name before first language/genre keyword (Malayalam, Hindi, etc.)
-            title = re.split(r'\s+(Malayalam|Hindi|Tamil|Telugu|Kannada|Action|Thriller|Movie)\b', title, flags=re.IGNORECASE)[0].strip()
+            title = re.split(r'\s+(Malayalam|Hindi|Tamil|Telugu|Kannada|Action|Thriller|Movie|Full HD)\b', title, flags=re.IGNORECASE)[0].strip()
 
             # Extract year from uploadDate
             upload_date = data.get("uploadDate", "")
@@ -76,6 +76,6 @@ async def sonyliv_handler(client, message):
         result.append(f"{landscape}\n")  # Landscape first with a line break
     if portrait:
         result.append(f"Portrait: {portrait}\n")  # Portrait with cleaner label
-    result.append(f"{title} ({year})")  # Clean title + year
+    result.append(f"{title} - ({year})")  # Clean title + year
 
     await message.reply("\n".join(result), quote=True)
