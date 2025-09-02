@@ -25,6 +25,8 @@ async def fetch_movie_info(url: str):
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
+            
+            # Create context with user-agent (correct way)
             context = await browser.new_context(
                 user_agent=(
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -32,11 +34,14 @@ async def fetch_movie_info(url: str):
                     "Chrome/139.0.0.0 Safari/537.36"
                 )
             )
+
             page = await context.new_page()
-            # Hide webdriver property for stealth
+            
+            # Stealth: hide webdriver property
             await page.evaluate(
                 "() => { Object.defineProperty(navigator, 'webdriver', {get: () => undefined}) }"
             )
+
             await page.goto(url, timeout=60000)
             content = await page.content()
             await browser.close()
