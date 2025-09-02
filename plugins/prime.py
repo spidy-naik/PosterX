@@ -3,11 +3,14 @@ from pyrogram.types import Message
 import requests
 from bs4 import BeautifulSoup
 import re
+import json
 
 @Client.on_message(filters.command("prime") & filters.private)
 async def prime_poster_scraper(client, message: Message):
     if len(message.command) < 2:
-        return await message.reply("❌ Please provide a Prime Video link.\n\nExample:\n<code>/prime https://www.primevideo.com/detail/XYZ</code>")
+        return await message.reply(
+            "❌ Please provide a Prime Video link.\n\nExample:\n<code>/prime https://www.primevideo.com/detail/XYZ</code>"
+        )
 
     url = message.command[1]
     if "primevideo.com/detail/" not in url:
@@ -46,22 +49,43 @@ async def prime_poster_scraper(client, message: Message):
                 season = re.search(r"(Season\s*\d+)", tag.string, re.IGNORECASE).group(1)
                 break
 
-        # 🖼 Posters
-        target_script = None
-        for script in soup.find_all("script"):
-            if script.string and "titleshot" in script.string:
-                target_script = script.string
-                break
-
+        # 🖼 Posters (improved: parse "images": {...})
         posters = {}
         seen_urls = set()
-        if target_script:
-            pattern = r'"(?P<type>\w+shot)":\s*"(?P<url>https://m\.media-amazon\.com/images/[^"]+)"'
-            matches = re.findall(pattern, target_script)
-            for category, img_url in matches:
-                if img_url not in seen_urls:
-                    posters[category] = img_url
-                    seen_urls.add(img_url)
+
+        for script in soup.find_all("script"):
+            content = script.string or (script.contents[0] if script.contents else "")
+            if not content:
+                continue
+
+            # Look for JSON "images": {...}
+            if '"images":' in content:
+                match = re.search(r'"images"\s*:\s*({.*?})', content)
+                if match:
+                    try:
+                        images_json = match.group(1)
+                        # clean trailing commas if any
+                        images_json = re.sub(r',\s*}', '}', images_json)
+                        images = json.loads(images_json)
+
+                        for key, img_url in images.items():
+                            if img_url not in seen_urls:
+                                posters[key] = img_url
+                                seen_urls.add(img_url)
+                    except Exception:
+                        pass
+
+        # fallback: old regex titleshot/covershot
+        if not posters:
+            for script in soup.find_all("script"):
+                content = script.string or (script.contents[0] if script.contents else "")
+                if content and "shot" in content:
+                    pattern = r'"(?P<type>\w+shot)":\s*"(?P<url>https://m\.media-amazon\.com/images/[^"]+)"'
+                    matches = re.findall(pattern, content)
+                    for category, img_url in matches:
+                        if img_url not in seen_urls:
+                            posters[category] = img_url
+                            seen_urls.add(img_url)
 
         # 🖨 Output
         reply_text = f"<b>🎬 Title:</b> <code>{clean_title}</code>\n"
@@ -69,7 +93,7 @@ async def prime_poster_scraper(client, message: Message):
             reply_text += f"<b>📅 Year:</b> <code>{release_year}</code>\n"
         if season:
             reply_text += f"<b>📀 Season:</b> <code>{season}</code>\n"
-        
+
         if posters:
             reply_text += "\n<b>🖼 Posters:</b>\n"
             for category, img in posters.items():
@@ -80,4 +104,6 @@ async def prime_poster_scraper(client, message: Message):
         await message.reply(reply_text, disable_web_page_preview=False)
 
     except Exception as e:
-        await message.reply(f"❌ Failed to fetch data.\n<b>Error:</b> <code>{str(e)}</code>")
+        await message.reply(
+            f"❌ Failed to fetch data.\n<b>Error:</b> <code>{str(e)}</code>"
+        )
