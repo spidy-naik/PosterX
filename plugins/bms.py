@@ -37,7 +37,7 @@ async def fetch_posters(url):
         return f"❌ Error: {e}"
 
 
-@Client.on_message(filters.command("poster") & filters.private)
+@Client.on_message(filters.command("bms") & filters.private)
 async def poster_command(client: Client, message: Message):
     if len(message.command) < 2:
         return await message.reply_text("❌ Send URL like:\n`/poster bms_url`")
