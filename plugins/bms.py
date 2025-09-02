@@ -10,12 +10,24 @@ async def fetch_poster(url: str):
             r = await client.get(url)
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Extract og:image
-        og_image = soup.find("meta", property="og:image")
-        if og_image:
-            return og_image.get("content")
+        posters = []
 
-        return None
+        # Look for meta og:image (property or name)
+        for tag in soup.find_all("meta", attrs={"property": "og:image"}):
+            posters.append(tag.get("content"))
+        for tag in soup.find_all("meta", attrs={"name": "og:image"}):
+            posters.append(tag.get("content"))
+
+        # Extra fallback: BookMyShow asset images
+        for img in soup.find_all("img"):
+            src = img.get("src") or img.get("data-src")
+            if src and "assets-in.bmscdn.com" in src:
+                posters.append(src)
+
+        posters = list(set([p for p in posters if p]))
+
+        return posters if posters else None
+
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -36,8 +48,9 @@ async def poster_command(client: Client, message: Message):
     if isinstance(result, str):  # error case
         return await message.reply_text(result)
 
-    # Send poster as photo
-    try:
-        await message.reply_photo(result)
-    except:
-        await message.reply_text(result)
+    # Send all posters (deduplicated)
+    for poster in result:
+        try:
+            await message.reply_photo(poster)
+        except:
+            await message.reply_text(poster)
