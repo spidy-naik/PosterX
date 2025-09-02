@@ -5,12 +5,27 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 
 # --- Setup logger ---
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
-)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Console handler (show only warnings/errors)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.WARNING)
+console_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+console_handler.setFormatter(console_format)
+
+# File handler (full debug logs)
+file_handler = logging.FileHandler("bms_debug.log", encoding="utf-8")
+file_handler.setLevel(logging.DEBUG)
+file_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+file_handler.setFormatter(file_format)
+
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+# Silence Pyrogram debug spam
+logging.getLogger("pyrogram").setLevel(logging.WARNING)
+logging.getLogger("TgCrypto").setLevel(logging.WARNING)
 
 
 async def fetch_poster(url: str):
@@ -20,9 +35,9 @@ async def fetch_poster(url: str):
 
         logger.debug(f"Fetched URL: {url} | Status: {r.status_code}")
         logger.debug(f"Response length: {len(r.text)} chars")
+        logger.debug(f"HTML preview: {r.text[:500]}")  # first 500 chars
 
         soup = BeautifulSoup(r.text, "html.parser")
-
         posters = []
 
         # Look for meta og:image (property or name)
