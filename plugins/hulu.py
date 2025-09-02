@@ -28,20 +28,22 @@ async def hulu_poster(client, message):
     try:
         data = json.loads(json_ld.string)
         title = data.get("name", "Hulu Content")
-        description = data.get("description", "")
-        poster = data.get("image", "")
-        # Year from releasedEvent.startDate
         year = None
         if "releasedEvent" in data and data["releasedEvent"].get("startDate"):
             year = data["releasedEvent"]["startDate"].split("-")[0]
+
+        # Get poster and convert to high-res JPEG
+        poster = data.get("image", "")
+        if poster:
+            poster = poster.split("&format=")[0]  # remove old format
+            poster = poster.split("&size=")[0]    # remove old size
+            poster += "&format=jpeg&size=3840x2160"
     except Exception as e:
         return await message.reply(f"❌ Failed to parse Hulu metadata: {e}", quote=True)
 
-    msg = f"**Title:** {title}\n"
+    # Final output
+    msg = f"{poster}\n\n{title}"
     if year:
-        msg += f"**Year:** {year}\n"
-    msg += f"**Poster:** {poster}\n"
-    if description:
-        msg += f"**Description:** {description}"
+        msg += f" ({year})"
 
     await message.reply_text(msg, quote=True)
