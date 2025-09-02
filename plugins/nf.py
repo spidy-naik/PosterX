@@ -16,7 +16,7 @@ async def netflix_handler(client, message):
     
     movie_id = match.group(1)
     
-    # Fetch data from your API
+    # Fetch data from API
     api_url = f"https://netflix-en.gregory24thom-ps-on23-96.workers.dev/?movieid={movie_id}"
     try:
         resp = requests.get(api_url, timeout=10).json()
@@ -26,20 +26,20 @@ async def netflix_handler(client, message):
     if resp.get("status") != "success":
         return await message.reply("❌ Movie not found!", quote=True)
     
-    metadata = resp.get("metadata", {}).get("video", {})
-    title = metadata.get("title", "N/A")
-    synopsis = metadata.get("synopsis", "N/A")
-    year = metadata.get("year", "N/A")
-    rating = metadata.get("rating", "N/A")
-    runtime_sec = metadata.get("runtime", 0)
-    runtime_min = runtime_sec // 60
-    poster_url = metadata.get("artwork", [{}])[0].get("url")
+    video = resp.get("metadata", {}).get("video", {})
+    title = video.get("title", "N/A")
+    year = video.get("year", "N/A")
     
-    # Prepare the caption
-    caption = f"🎬 <b>{title}</b> ({year})\n\n"
-    caption += f"⭐ Rating: {rating}/10\n"
-    caption += f"⏱ Runtime: {runtime_min} min\n\n"
-    caption += f"{synopsis}"
+    # Get 1280x720 poster
+    poster_url = None
+    for art in video.get("artwork", []):
+        if art.get("w") == 1280 and art.get("h") == 720:
+            poster_url = art.get("url")
+            break
     
-    # Send the poster with caption
-    await message.reply_photo(photo=poster_url, caption=caption)
+    if not poster_url:
+        poster_url = video.get("artwork", [{}])[0].get("url", "")
+    
+    # Prepare message
+    msg = f"{poster_url}\n\n{title} - ({year})"
+    await message.reply_text(msg)
