@@ -83,7 +83,7 @@ async def scrape_series(soup):
     season_info_text = f" - {season_text}" if season_text else ""
     return poster_url, f"{title}{season_info_text}", year, language
 
-@Client.on_message(filters.command("aha"))
+@Client.on_message(filters.command("ahaa"))
 async def aha_handler(client, message):
     if len(message.command) < 2:
         return await message.reply("❌ Usage: /aha <Aha Movie or Series URL>", quote=True)
