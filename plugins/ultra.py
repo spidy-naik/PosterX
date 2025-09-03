@@ -1,4 +1,5 @@
-from pyrogram import Client, filters
+import re
+pyrogram import Client, filters
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 
@@ -34,8 +35,9 @@ async def ultraplay_simple(client, message):
     year = "Unknown"
     for p_tag in soup.select(".content-sub-detail p"):
         text = p_tag.get_text(strip=True)
-        if text.isdigit():
-            year = text
+        match = re.search(r"\b(\d{4})\b", text)
+        if match:
+            year = match.group(1)
             break
 
     # Build and send response
