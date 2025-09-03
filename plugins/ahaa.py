@@ -4,7 +4,7 @@ from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urlencode, urlunparse
 
-@Client.on_message(filters.command("ahaseries"))
+@Client.on_message(filters.command("ahaa"))
 async def aha_series_scraper(client, message):
     if len(message.command) < 2:
         return await message.reply("❌ Usage: /ahaseries <Aha Series URL>", quote=True)
