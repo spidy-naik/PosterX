@@ -52,20 +52,25 @@ async def scrape_series(soup):
     title_tag = soup.select_one("div.details-header-content-title h1")
     title = title_tag.get_text(strip=True) if title_tag else "Unknown"
 
-    # Info paragraph
+    # Info paragraph for year and season
     info_tag = soup.select_one("div.details-header-content-info p")
     year = "Unknown"
     season_text = ""
     if info_tag:
         info_text = info_tag.get_text(strip=True)
-        year_match = re.search(r"\b(\d{4})\b", info_text)
-        if year_match:
-            year = year_match.group(1)
+        # Split by bullet and search for year
+        parts = [part.strip() for part in info_text.split("•")]
+        for part in parts:
+            year_match = re.search(r"\b(\d{4})\b", part)
+            if year_match:
+                year = year_match.group(1)
+                break
+        # Search for season
         season_match = re.search(r"(\d+ Season[s]?)", info_text)
         if season_match:
             season_text = f"Season {season_match.group(1).split()[0]}"
 
-    # Language detection (meta title)
+    # Language detection (from meta title)
     lang_tag = soup.select_one("meta[property='og:title']")
     language = ""
     if lang_tag:
