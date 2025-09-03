@@ -40,8 +40,18 @@ async def aha_scraper(client, message):
     description = desc_tag.get_text(strip=True) if desc_tag else "No description found."
 
     # Poster (update this selector if needed)
-    poster_tag = soup.select_one(".details-header-content img")
-    poster_url = poster_tag["src"] if poster_tag else None
+    poster_tag = soup.select_one(".details-header-content .details-header-content-image")  # update selector
+    poster_url = None
+    if poster_tag:
+        style = poster_tag.get("style", "")
+        match = re.search(r'url\((.*?)\)', style)
+        if match:
+            poster_url = match.group(1)
+
+    # fallback: check for any img in details-header-content
+    if not poster_url:
+        img_tag = soup.select_one(".details-header-content img")
+        poster_url = img_tag["src"] if img_tag else None
 
     # Build and send response
     if poster_url:
