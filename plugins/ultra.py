@@ -24,13 +24,22 @@ async def ultraplay_poster(client, message):
         title = soup.select_one("h1.content-title")
         title = title.get_text(strip=True) if title else "Unknown Title"
 
-        # ✅ Year (find numeric <p>)
+        # ✅ Year (numeric <p>)
         year = "Unknown"
         for p in soup.select(".content-sub-detail p"):
             text = p.get_text(strip=True)
             if text.isdigit():
                 year = text
                 break
+
+        # ✅ Description
+        desc_tag = soup.select_one(".content-description p")
+        description = desc_tag.get_text(strip=True) if desc_tag else "No description"
+
+        # ✅ Cast & Crew
+        cast_tags = soup.select(".cast-an-crew-value")
+        cast = cast_tags[0].get_text(strip=True) if len(cast_tags) > 0 else "N/A"
+        crew = cast_tags[1].get_text(strip=True) if len(cast_tags) > 1 else "N/A"
 
         # ✅ Poster
         poster = soup.select_one(".content-image img")
@@ -39,10 +48,14 @@ async def ultraplay_poster(client, message):
     except Exception as e:
         return await message.reply(f"❌ Failed to parse Ultraplay metadata: {e}", quote=True)
 
-    # Final output
+    # Final output message
+    msg = f"🎬 **{title} ({year})**\n\n"
+    msg += f"📝 {description}\n\n"
+    msg += f"👥 **Cast:** {cast}\n"
+    msg += f"🎥 **Crew:** {crew}\n\n"
     if poster_url:
-        msg = f"{poster_url}\n\n{title} ({year})"
+        msg = f"{poster_url}\n\n" + msg
     else:
-        msg = f"{title} ({year})\nPoster Not Found"
-        
+        msg += "❌ Poster not found"
+
     await message.reply_text(msg, quote=True)
