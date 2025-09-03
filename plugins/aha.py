@@ -15,8 +15,7 @@ async def aha_scraper(client, message):
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.goto(url, timeout=30000)
-            await page.wait_for_selector("meta[property='og:title']")  # ensure meta exists
-            html = await page.content()
+            html = await page.content()  # just get the content; no need to wait for meta
             await browser.close()
     except Exception as e:
         return await message.reply(f"❌ Failed to load page: {e}", quote=True)
@@ -24,16 +23,16 @@ async def aha_scraper(client, message):
     soup = BeautifulSoup(html, "html.parser")
 
     # Title
-    title = soup.select_one("meta[property='og:title']")
-    title = title["content"] if title else "Unknown"
+    title_tag = soup.select_one("meta[property='og:title']")
+    title = title_tag["content"] if title_tag else "Unknown"
 
     # Description
-    description = soup.select_one("meta[property='og:description']")
-    description = description["content"] if description else "No description found"
+    desc_tag = soup.select_one("meta[property='og:description']")
+    description = desc_tag["content"] if desc_tag else "No description found"
 
     # Poster
-    poster = soup.select_one("meta[property='og:image']")
-    poster_url = poster["content"] if poster else None
+    poster_tag = soup.select_one("meta[property='og:image']")
+    poster_url = poster_tag["content"] if poster_tag else None
 
     # Year: extract 4-digit year from title
     year_match = re.search(r"\b(\d{4})\b", title)
