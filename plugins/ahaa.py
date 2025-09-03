@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urlencode, urlunparse
 
 async def fetch_html(url):
+    """Fetch page HTML using Playwright"""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
@@ -18,13 +19,18 @@ async def scrape_movie(soup):
     title_tag = soup.select_one("meta[property='og:title']")
     raw_title = title_tag["content"] if title_tag else "Unknown"
 
-    # Extract year
-    year_match = re.search(r"\b(\d{4})\b", raw_title)
+    # Extract year from page meta description if available
+    desc_tag = soup.select_one("meta[property='og:description']")
+    year_match = None
+    if desc_tag:
+        year_match = re.search(r"\b(\d{4})\b", desc_tag['content'])
+    if not year_match:
+        year_match = re.search(r"\b(\d{4})\b", raw_title)
     year = year_match.group(1) if year_match else "Unknown"
 
-    # Extract language
-    lang_match = re.search(r"(Tamil|Telugu|Hindi|English|Malayalam|Kannada)", raw_title, re.I)
-    language = lang_match.group(1).capitalize() if lang_match else ""
+    # Language
+    language_match = re.search(r"\b(Tamil|Telugu|Hindi|English|Malayalam|Kannada)\b", raw_title, re.I)
+    language = language_match.group(1).capitalize() if language_match else ""
 
     # Clean title
     clean_title = re.sub(rf"\b{year}\b", "", raw_title)
@@ -46,7 +52,7 @@ async def scrape_series(soup):
     title_tag = soup.select_one("div.details-header-content-title h1")
     title = title_tag.get_text(strip=True) if title_tag else "Unknown"
 
-    # Info
+    # Info paragraph
     info_tag = soup.select_one("div.details-header-content-info p")
     year = "Unknown"
     season_text = ""
@@ -59,7 +65,7 @@ async def scrape_series(soup):
         if season_match:
             season_text = f"Season {season_match.group(1).split()[0]}"
 
-    # Language
+    # Language detection (meta title)
     lang_tag = soup.select_one("meta[property='og:title']")
     language = ""
     if lang_tag:
@@ -77,10 +83,10 @@ async def scrape_series(soup):
     season_info_text = f" - {season_text}" if season_text else ""
     return poster_url, f"{title}{season_info_text}", year, language
 
-@Client.on_message(filters.command("ahaa"))
+@Client.on_message(filters.command("aha"))
 async def aha_handler(client, message):
     if len(message.command) < 2:
-        return await message.reply("❌ Usage: /aha <Aha URL>", quote=True)
+        return await message.reply("❌ Usage: /aha <Aha Movie or Series URL>", quote=True)
 
     url = message.command[1].strip()
     try:
