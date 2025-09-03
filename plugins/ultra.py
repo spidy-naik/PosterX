@@ -11,7 +11,7 @@ async def ultraplay_poster(client, message):
 
     try:
         async with httpx.AsyncClient(timeout=10) as client_http:
-            resp = await client_http.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = await client_http.get(url)
             resp.raise_for_status()
             html = resp.text
     except Exception as e:
@@ -19,42 +19,42 @@ async def ultraplay_poster(client, message):
 
     soup = BeautifulSoup(html, "html.parser")
 
-    try:
-        # ✅ Title
-        title = soup.select_one("h1.content-title")
-        title = title.get_text(strip=True) if title else "Unknown Title"
+    # Extract data
+    title = soup.find("h1", class_="content-title")
+    title = title.text.strip() if title else "Unknown Title"
 
-        # ✅ Year (numeric <p>)
-        year = "Unknown"
-        for p in soup.select(".content-sub-detail p"):
-            text = p.get_text(strip=True)
-            if text.isdigit():
-                year = text
+    # Year is usually inside <div class="content-sub-detail"><p>…</p>
+    year = "Unknown"
+    sub_detail = soup.find("div", class_="content-sub-detail")
+    if sub_detail:
+        for p in sub_detail.find_all("p"):
+            if p.text.strip().isdigit() and len(p.text.strip()) == 4:  # numeric year
+                year = p.text.strip()
                 break
 
-        # ✅ Description
-        desc_tag = soup.select_one(".content-description p")
-        description = desc_tag.get_text(strip=True) if desc_tag else "No description"
+    description = soup.find("div", class_="content-description")
+    description = description.text.strip() if description else "No description"
 
-        # ✅ Cast & Crew
-        cast_tags = soup.select(".cast-an-crew-value")
-        cast = cast_tags[0].get_text(strip=True) if len(cast_tags) > 0 else "N/A"
-        crew = cast_tags[1].get_text(strip=True) if len(cast_tags) > 1 else "N/A"
+    cast = soup.find("div", class_="cast-an-crew-value")
+    cast_text = cast.text.strip() if cast else "N/A"
 
-        # ✅ Poster
-        poster = soup.select_one(".content-image img")
-        poster_url = poster["src"] if poster else ""
+    # For crew, it’s the *next* div with same class
+    crew = None
+    if cast:
+        crew = cast.find_next("div", class_="cast-an-crew-value")
+    crew_text = crew.text.strip() if crew else "N/A"
 
-    except Exception as e:
-        return await message.reply(f"❌ Failed to parse Ultraplay metadata: {e}", quote=True)
+    poster = soup.find("div", class_="content-image")
+    poster_url = poster.img["src"] if poster and poster.img else None
 
-    # Final output message
-    msg = f"🎬 **{title} ({year})**\n\n"
+    # Format output
+    msg = f"🎬 {title} ({year})\n\n"
     msg += f"📝 {description}\n\n"
-    msg += f"👥 **Cast:** {cast}\n"
-    msg += f"🎥 **Crew:** {crew}\n\n"
+    msg += f"👥 Cast: {cast_text}\n"
+    msg += f"🎥 Crew: {crew_text}\n\n"
+
     if poster_url:
-        msg = f"{poster_url}\n\n" + msg
+        msg += poster_url
     else:
         msg += "❌ Poster not found"
 
