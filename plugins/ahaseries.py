@@ -2,7 +2,7 @@ import re
 from pyrogram import Client, filters
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from urllib.parse import urlparse, urlencode, urlunparse
 
 @Client.on_message(filters.command("ahaseries"))
 async def aha_series_scraper(client, message):
@@ -24,30 +24,29 @@ async def aha_series_scraper(client, message):
     soup = BeautifulSoup(html, "html.parser")
 
     # Title
-    title_tag = soup.select_one("meta[property='og:title']")
-    raw_title = title_tag["content"] if title_tag else "Unknown"
+    title_tag = soup.select_one("div.details-header-content-title h1")
+    title = title_tag.get_text(strip=True) if title_tag else "Unknown"
 
-    # Extract year (4 digits)
-    year_match = re.search(r"\b(\d{4})\b", raw_title)
-    year = year_match.group(1) if year_match else "Unknown"
-
-    # Extract language (if present)
-    language_match = re.search(r"\b(Tamil|Telugu|Hindi|English|Malayalam|Kannada)\b", raw_title, re.I)
-    language = language_match.group(1).capitalize() if language_match else ""
-
-    # Clean title by removing year and language words
-    clean_title = re.sub(rf"\b{year}\b", "", raw_title)
-    if language:
-        clean_title = re.sub(rf"\b{language}\b", "", clean_title, flags=re.I)
-    clean_title = clean_title.replace("Movie", "").strip()
-
-    # Season info
-    season_tag = soup.select_one("div.details-header-content-info p")
-    season_info = ""
-    if season_tag:
-        season_match = re.search(r"(\d+ Season[s]?)", season_tag.get_text())
+    # Info paragraph for year and season
+    info_tag = soup.select_one("div.details-header-content-info p")
+    year = "Unknown"
+    season_text = ""
+    if info_tag:
+        info_text = info_tag.get_text(strip=True)
+        year_match = re.search(r"\b(\d{4})\b", info_text)
+        if year_match:
+            year = year_match.group(1)
+        season_match = re.search(r"(\d+ Season[s]?)", info_text)
         if season_match:
-            season_info = season_match.group(1)
+            season_text = f"Season {season_match.group(1).split()[0]}"
+
+    # Language detection (from meta title)
+    lang_tag = soup.select_one("meta[property='og:title']")
+    language = ""
+    if lang_tag:
+        lang_match = re.search(r"(Tamil|Telugu|Hindi|English|Malayalam|Kannada)", lang_tag['content'], re.I)
+        if lang_match:
+            language = lang_match.group(1).capitalize()
 
     # Poster URL
     poster_tag = soup.select_one("meta[property='og:image']")
@@ -57,14 +56,10 @@ async def aha_series_scraper(client, message):
     poster_url_final = None
     if poster_url:
         parsed = urlparse(poster_url)
-        qs_clean = {"width": "4000"}
-        poster_url_final = urlunparse(parsed._replace(query=urlencode(qs_clean)))
+        poster_url_final = urlunparse(parsed._replace(query=urlencode({"width": "4000"})))
 
     # Build message
-    season_text = f" - {season_info}" if season_info else ""
-    if poster_url_final:
-        msg = f"{poster_url_final}\n{clean_title}{season_text} - ({year}) ({language})"
-    else:
-        msg = f"{clean_title}{season_text} - ({year}) ({language})\n❌ Poster not found"
+    season_info_text = f" - {season_text}" if season_text else ""
+    msg = f"{poster_url_final}\n{title}{season_info_text} - ({year}) ({language})" if poster_url_final else f"{title}{season_info_text} - ({year}) ({language})\n❌ Poster not found"
 
     await message.reply_text(msg, quote=True)
