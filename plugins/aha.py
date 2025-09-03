@@ -54,8 +54,8 @@ async def aha_scraper(client, message):
 
     # Build message
     if poster_url_final:
-        msg = f"{poster_url_final}\n{clean_title} - ({year}) ({language})"
+        msg = f"**{poster_url_final}\n\n{clean_title} - ({year}) ({language})**"
     else:
-        msg = f"{clean_title} - ({year}) ({language})\n❌ Poster not found"
+        msg = "❌ Poster not found"
 
     await message.reply_text(msg, quote=True)
