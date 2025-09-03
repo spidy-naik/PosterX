@@ -11,7 +11,7 @@ async def ultraplay_poster(client, message):
 
     try:
         async with httpx.AsyncClient(timeout=10) as client_http:
-            resp = await client_http.get(url)
+            resp = await client_http.get(url, headers={"User-Agent": "Mozilla/5.0"})
             resp.raise_for_status()
             html = resp.text
     except Exception as e:
@@ -19,42 +19,25 @@ async def ultraplay_poster(client, message):
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Extract data
-    title = soup.find("h1", class_="content-title")
-    title = title.text.strip() if title else "Unknown Title"
+    # ✅ Fallback to OpenGraph meta tags
+    title = soup.find("meta", property="og:title")
+    title = title["content"].strip() if title else "Unknown Title"
 
-    # Year is usually inside <div class="content-sub-detail"><p>…</p>
+    description = soup.find("meta", property="og:description")
+    description = description["content"].strip() if description else "No description"
+
+    poster = soup.find("meta", property="og:image")
+    poster_url = poster["content"].strip() if poster else None
+
+    # No reliable year / cast / crew in static HTML
     year = "Unknown"
-    sub_detail = soup.find("div", class_="content-sub-detail")
-    if sub_detail:
-        for p in sub_detail.find_all("p"):
-            if p.text.strip().isdigit() and len(p.text.strip()) == 4:  # numeric year
-                year = p.text.strip()
-                break
 
-    description = soup.find("div", class_="content-description")
-    description = description.text.strip() if description else "No description"
-
-    cast = soup.find("div", class_="cast-an-crew-value")
-    cast_text = cast.text.strip() if cast else "N/A"
-
-    # For crew, it’s the *next* div with same class
-    crew = None
-    if cast:
-        crew = cast.find_next("div", class_="cast-an-crew-value")
-    crew_text = crew.text.strip() if crew else "N/A"
-
-    poster = soup.find("div", class_="content-image")
-    poster_url = poster.img["src"] if poster and poster.img else None
-
-    # Format output
+    # Build message
     msg = f"🎬 {title} ({year})\n\n"
     msg += f"📝 {description}\n\n"
-    msg += f"👥 Cast: {cast_text}\n"
-    msg += f"🎥 Crew: {crew_text}\n\n"
 
     if poster_url:
-        msg += poster_url
+        msg = f"{poster_url}\n\n" + msg
     else:
         msg += "❌ Poster not found"
 
