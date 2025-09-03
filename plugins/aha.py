@@ -15,7 +15,7 @@ async def aha_scraper(client, message):
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.goto(url, timeout=30000)
-            await page.wait_for_selector(".details-header")  # ensures page loaded
+            await page.wait_for_selector("meta[property='og:title']")  # ensure meta exists
             html = await page.content()
             await browser.close()
     except Exception as e:
@@ -23,35 +23,21 @@ async def aha_scraper(client, message):
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Poster: fetch from background-image style
-    poster_url = None
-    div_tag = soup.select_one(".details-header.hide-bg")
-    if div_tag:
-        style = div_tag.get("style", "")
-        match = re.search(r'url\(&quot;(.*?)&quot;\)', style)
-        if match:
-            poster_url = match.group(1)
-        else:
-            # fallback: sometimes &quot; not used
-            match = re.search(r'url\((.*?)\)', style)
-            if match:
-                poster_url = match.group(1)
-
     # Title
-    title_tag = soup.select_one(".details-header-content-title h1")
-    title = title_tag.get_text(strip=True) if title_tag else "Unknown"
-
-    # Year: look for 4-digit number in content info
-    year = "Unknown"
-    info_tag = soup.select_one(".details-header-content-info p")
-    if info_tag:
-        match = re.search(r"\b(\d{4})\b", info_tag.get_text())
-        if match:
-            year = match.group(1)
+    title = soup.select_one("meta[property='og:title']")
+    title = title["content"] if title else "Unknown"
 
     # Description
-    desc_tag = soup.select_one("#description")
-    description = desc_tag.get_text(strip=True) if desc_tag else "No description found"
+    description = soup.select_one("meta[property='og:description']")
+    description = description["content"] if description else "No description found"
+
+    # Poster
+    poster = soup.select_one("meta[property='og:image']")
+    poster_url = poster["content"] if poster else None
+
+    # Year: extract 4-digit year from title
+    year_match = re.search(r"\b(\d{4})\b", title)
+    year = year_match.group(1) if year_match else "Unknown"
 
     # Send message
     if poster_url:
