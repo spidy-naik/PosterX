@@ -1,40 +1,43 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from playwright.async_api import async_playwright
-
-async def fetch_ultra_poster(url):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto(url, timeout=15000)
-
-        # Title
-        title = await page.locator("h1.content-title").inner_text()
-
-        # Year
-        year_text = await page.locator("div.content-sub-detail").inner_text()
-        year = None
-        for part in year_text.split("|"):
-            part = part.strip()
-            if part.isdigit() and len(part) == 4:
-                year = part
-
-        # Poster
-        poster = await page.locator("video").get_attribute("poster")
-
-        await browser.close()
-        return {"title": title, "year": year, "poster": poster}
+import requests
+from bs4 import BeautifulSoup
 
 @Client.on_message(filters.command("ultra") & filters.private)
-async def ultra_handler(client: Client, message: Message):
+async def ultra_handler(client, message: Message):
     if len(message.command) < 2:
-        return await message.reply("❌ Usage:\n`/ultra <UltraJhakass URL>`", quote=True)
+        return await message.reply("❗ Usage:\n/ultra <UltraJhakaas Movie URL>")
 
     url = message.command[1].strip()
-    details = await fetch_ultra_poster(url)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/140.0.0.0 Safari/537.36"
+    }
 
-    if not details or not details["poster"]:
-        return await message.reply("❌ Poster not found!", quote=True)
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except Exception as e:
+        return await message.reply(f"❌ Failed to fetch page: {e}")
 
-    caption = f"🎬 **{details['title']}** ({details['year']})"
-    await message.reply_photo(details["poster"], caption=caption)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # 🔎 Grab <video poster="...">
+    video_tag = soup.find("video", {"id": "video"})
+    poster = video_tag["poster"] if video_tag and video_tag.has_attr("poster") else None
+
+    # 🔎 Title/year fallback from <title>
+    page_title = soup.title.string if soup.title else "Unknown"
+    # Example: "Twelve (2025) - UltraJhakaas"
+    title = page_title.split(" - ")[0].strip()
+    year = ""
+    if "(" in title and ")" in title:
+        year = title.split("(")[-1].replace(")", "").strip()
+        title = title.split("(")[0].strip()
+
+    if not poster:
+        return await message.reply("❌ Poster not found!")
+
+    caption = f"🎬 <b>{title}</b> {f'({year})' if year else ''}"
+    await message.reply_photo(photo=poster, caption=caption)
