@@ -65,4 +65,4 @@ async def ultra_handler(client, message):
         title_with_year = "Unknown Title"
 
     # Send poster URL + Title (Year)
-    await message.reply(f"{poster_url}\n\n{title_with_year}")
+    await message.reply(f"**{poster_url}\n\n{title_with_year}**")
