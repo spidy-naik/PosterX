@@ -1,9 +1,8 @@
 from pyrogram import Client, filters
-from pyrogram.types import Message
 from playwright.async_api import async_playwright
 
 @Client.on_message(filters.command("ultra") & filters.private)
-async def ultra_handler(client, message: Message):
+async def ultra_handler(client, message):
     if len(message.command) < 2:
         return await message.reply("❗ Usage:\n/ultra <UltraJhakaas URL>")
 
@@ -15,27 +14,27 @@ async def ultra_handler(client, message: Message):
             page = await browser.new_page()
             await page.goto(url, timeout=30000)
 
-            # ✅ Wait until <video id="video"> is available
+            # Wait until the <video> element is loaded
             await page.wait_for_selector("video#video")
 
-            # Extract poster attribute
-            poster = await page.get_attribute("video#video", "poster")
+            # Extract poster URL
+            poster_url = await page.get_attribute("video#video", "poster")
 
-            # Extract page title
-            page_title = await page.title()
-            title = page_title.split(" - ")[0].strip()
-            year = ""
-            if "(" in title and ")" in title:
-                year = title.split("(")[-1].replace(")", "").strip()
-                title = title.split("(")[0].strip()
+            # Extract page title from <h1 class="content-title">Urmi</h1>
+            title_text = await page.text_content("h1.content-title")
+            
+            # Extract year from page sub-detail
+            year_text = await page.text_content(".content-sub-detail p:last-child")  # usually last <p> has year
+
+            title_with_year = f"{title_text.strip()} ({year_text.strip()})" if year_text else title_text.strip()
 
             await browser.close()
 
     except Exception as e:
         return await message.reply(f"❌ Failed to fetch: {e}")
 
-    if not poster:
+    if not poster_url:
         return await message.reply("❌ Poster not found!")
 
-    caption = f"🎬 <b>{title}</b> {f'({year})' if year else ''}"
-    await message.reply_photo(photo=poster, caption=caption)
+    # Send plain text response
+    await message.reply(f"{poster_url}\n{title_with_year}")
