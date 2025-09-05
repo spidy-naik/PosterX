@@ -30,7 +30,6 @@ async def ultra_handler(client, message):
                 img_element = await page.query_selector(".content-image img.poster")
                 if img_element:
                     poster_url = await img_element.get_attribute("src")
-                    # fallback title from image alt/title
                     if not title_text:
                         title_text = await img_element.get_attribute("alt") or await img_element.get_attribute("title")
 
@@ -57,5 +56,13 @@ async def ultra_handler(client, message):
     if not poster_url:
         return await message.reply("❌ Poster not found!")
 
-    # ✅ Only send poster URL as message
-    await message.reply(f"Poster URL:\n{poster_url}")
+    # Format title with year
+    if title_text and year_text:
+        title_with_year = f"{title_text} ({year_text})"
+    elif title_text:
+        title_with_year = title_text
+    else:
+        title_with_year = "Unknown Title"
+
+    # Send poster URL + Title (Year)
+    await message.reply(f"{poster_url}\n\n{title_with_year}")
