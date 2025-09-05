@@ -17,33 +17,37 @@ async def ultra_handler(client, message):
             page = await browser.new_page()
             await page.goto(url, timeout=30000)
 
-            # ✅ Try video poster first
+            # ✅ Wait for either video or image poster
+            await page.wait_for_selector("video[poster], .content-image img.poster", timeout=10000)
+
+            # ✅ Video poster first
             video_element = await page.query_selector("video[poster]")
             if video_element:
                 poster_url = await video_element.get_attribute("poster")
 
-            # ✅ Fallback to image poster if no video poster
+            # ✅ Fallback to image poster
             if not poster_url:
                 img_element = await page.query_selector(".content-image img.poster")
                 if img_element:
                     poster_url = await img_element.get_attribute("src")
+                    # fallback title from image alt/title
+                    if not title_text:
+                        title_text = await img_element.get_attribute("alt") or await img_element.get_attribute("title")
 
-            # ✅ Extract title
-            title_elem = await page.query_selector("h1.content-title")
-            if title_elem:
-                title_text = (await title_elem.text_content()).strip()
-            elif poster_url and img_element:
-                # fallback from image alt/title
-                title_text = await img_element.get_attribute("alt") or await img_element.get_attribute("title")
+            # ✅ Extract title from h1 if not from image
+            if not title_text:
+                title_elem = await page.query_selector("h1.content-title")
+                if title_elem:
+                    title_text = (await title_elem.text_content()).strip()
 
             # ✅ Extract year
-            year_text = None
-            sub_detail = await page.query_selector_all(".content-sub-detail p")
-            for p in sub_detail:
-                text = await p.text_content()
-                if text and text.strip().isdigit() and len(text.strip()) == 4:
-                    year_text = text.strip()
-                    break
+            if not year_text:
+                sub_detail = await page.query_selector_all(".content-sub-detail p")
+                for p in sub_detail:
+                    text = await p.text_content()
+                    if text and text.strip().isdigit() and len(text.strip()) == 4:
+                        year_text = text.strip()
+                        break
 
             await browser.close()
 
@@ -55,5 +59,5 @@ async def ultra_handler(client, message):
 
     caption = f"{title_text} ({year_text})" if title_text and year_text else title_text or "Unknown Title"
 
-    # Send as Telegram photo
+    # ✅ Send poster to Telegram
     await message.reply_photo(photo=poster_url, caption=caption)
