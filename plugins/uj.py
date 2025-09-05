@@ -40,4 +40,4 @@ async def ultra_handler(client, message):
     if not poster_url:
         return await message.reply("❌ Poster not found!")
 
-    await message.reply(f"{poster_url}\n{title_with_year}")
+    await message.reply(f"**{poster_url}\n\n{title_with_year}**")
