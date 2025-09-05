@@ -7,7 +7,6 @@ async def ultra_handler(client, message):
         return await message.reply("❗ Usage:\n/ultra <UltraJhakaas URL>")
 
     url = message.command[1].strip()
-
     poster_url = None
     title_text = None
     year_text = None
@@ -18,22 +17,27 @@ async def ultra_handler(client, message):
             page = await browser.new_page()
             await page.goto(url, timeout=30000)
 
-            # 1️⃣ First try video poster
+            # ✅ Try video poster first
             video_element = await page.query_selector("video[poster]")
             if video_element:
                 poster_url = await video_element.get_attribute("poster")
-                title_elem = await page.query_selector("h1.content-title")
-                if title_elem:
-                    title_text = await title_elem.text_content()
 
-            # 2️⃣ Fallback to image poster if video not found
+            # ✅ Fallback to image poster if no video poster
             if not poster_url:
                 img_element = await page.query_selector(".content-image img.poster")
                 if img_element:
                     poster_url = await img_element.get_attribute("src")
-                    title_text = await img_element.get_attribute("alt") or await img_element.get_attribute("title")
 
-            # 3️⃣ Extract year
+            # ✅ Extract title
+            title_elem = await page.query_selector("h1.content-title")
+            if title_elem:
+                title_text = (await title_elem.text_content()).strip()
+            elif poster_url and img_element:
+                # fallback from image alt/title
+                title_text = await img_element.get_attribute("alt") or await img_element.get_attribute("title")
+
+            # ✅ Extract year
+            year_text = None
             sub_detail = await page.query_selector_all(".content-sub-detail p")
             for p in sub_detail:
                 text = await p.text_content()
@@ -49,6 +53,7 @@ async def ultra_handler(client, message):
     if not poster_url:
         return await message.reply("❌ Poster not found!")
 
-    title_with_year = f"{title_text.strip()} ({year_text})" if title_text and year_text else title_text.strip() if title_text else "Unknown Title"
+    caption = f"{title_text} ({year_text})" if title_text and year_text else title_text or "Unknown Title"
 
-    await message.reply(f"{poster_url}\n{title_with_year}")
+    # Send as Telegram photo
+    await message.reply_photo(photo=poster_url, caption=caption)
