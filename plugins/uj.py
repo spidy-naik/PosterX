@@ -14,19 +14,23 @@ async def ultra_handler(client, message):
             page = await browser.new_page()
             await page.goto(url, timeout=30000)
 
-            # Wait until the <video> element is loaded
+            # Wait for the <video> poster
             await page.wait_for_selector("video#video")
-
-            # Extract poster URL
             poster_url = await page.get_attribute("video#video", "poster")
 
-            # Extract page title from <h1 class="content-title">Urmi</h1>
+            # Extract title
             title_text = await page.text_content("h1.content-title")
             
-            # Extract year from page sub-detail
-            year_text = await page.text_content(".content-sub-detail p:last-child")  # usually last <p> has year
+            # Extract all <p> inside .content-sub-detail
+            p_elements = await page.query_selector_all(".content-sub-detail p")
+            year_text = None
+            for p in p_elements:
+                text = await p.text_content()
+                if text and text.strip().isdigit() and len(text.strip()) == 4:
+                    year_text = text.strip()
+                    break
 
-            title_with_year = f"{title_text.strip()} ({year_text.strip()})" if year_text else title_text.strip()
+            title_with_year = f"{title_text.strip()} ({year_text})" if year_text else title_text.strip()
 
             await browser.close()
 
@@ -36,5 +40,4 @@ async def ultra_handler(client, message):
     if not poster_url:
         return await message.reply("❌ Poster not found!")
 
-    # Send plain text response
     await message.reply(f"{poster_url}\n{title_with_year}")
