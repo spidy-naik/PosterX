@@ -1,45 +1,40 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-import requests
-from bs4 import BeautifulSoup
-import re
+from playwright.async_api import async_playwright
 
-def get_ultrajhakass_details(url):
-    headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers)
-    soup = BeautifulSoup(r.text, "html.parser")
+async def fetch_ultra_poster(url):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.goto(url, timeout=15000)
 
-    # Title
-    title_tag = soup.find("h1", class_="content-title")
-    title = title_tag.get_text(strip=True) if title_tag else None
+        # Title
+        title = await page.locator("h1.content-title").inner_text()
 
-    # Year
-    sub_detail = soup.find("div", class_="content-sub-detail")
-    year = None
-    if sub_detail:
-        year_match = re.search(r"\b(19|20)\d{2}\b", sub_detail.get_text())
-        if year_match:
-            year = year_match.group(0)
+        # Year
+        year_text = await page.locator("div.content-sub-detail").inner_text()
+        year = None
+        for part in year_text.split("|"):
+            part = part.strip()
+            if part.isdigit() and len(part) == 4:
+                year = part
 
-    # Poster
-    video_tag = soup.find("video")
-    poster = video_tag.get("poster") if video_tag else None
+        # Poster
+        poster = await page.locator("video").get_attribute("poster")
 
-    return {"title": title, "year": year, "poster": poster}
+        await browser.close()
+        return {"title": title, "year": year, "poster": poster}
 
 @Client.on_message(filters.command("ultra") & filters.private)
 async def ultra_handler(client: Client, message: Message):
     if len(message.command) < 2:
-        return await message.reply("❌ Usage:\n`/ultra <UltraJhakass Movie URL>`", quote=True)
+        return await message.reply("❌ Usage:\n`/ultra <UltraJhakass URL>`", quote=True)
 
     url = message.command[1].strip()
-    details = get_ultrajhakass_details(url)
+    details = await fetch_ultra_poster(url)
 
-    if not details["poster"]:
+    if not details or not details["poster"]:
         return await message.reply("❌ Poster not found!", quote=True)
 
     caption = f"🎬 **{details['title']}** ({details['year']})"
-    try:
-        await message.reply_photo(details["poster"], caption=caption)
-    except Exception as e:
-        await message.reply(f"⚠️ Error sending poster: {e}", quote=True)
+    await message.reply_photo(details["poster"], caption=caption)
