@@ -17,23 +17,22 @@ async def ultra_handler(client, message):
             poster_url = None
             title_text = None
 
-            # 1️⃣ Check for <img> format
+            # ✅ 1. Look for main content image
             img_element = await page.query_selector(".content-image img.poster")
             if img_element:
                 poster_url = await img_element.get_attribute("src")
                 title_text = await img_element.get_attribute("alt") or await img_element.get_attribute("title")
 
-            # 2️⃣ If not found, fallback to <video> poster
+            # ✅ 2. Fallback: video poster
             if not poster_url:
                 video_element = await page.query_selector("video[poster]")
                 if video_element:
                     poster_url = await video_element.get_attribute("poster")
-                    # try to extract title from h1.content-title
                     title_elem = await page.query_selector("h1.content-title")
                     if title_elem:
                         title_text = await title_elem.text_content()
 
-            # 3️⃣ Try to find year from content-sub-detail
+            # ✅ 3. Year
             year_text = None
             sub_detail = await page.query_selector_all(".content-sub-detail p")
             for p in sub_detail:
